@@ -19,6 +19,8 @@ pub enum Rule {
     Or(String),
     #[serde(rename = "Eq")]
     Eq(String),
+    #[serde(rename = "In")]
+    In(String),
     #[serde(rename = "List")]
     List(String),
     #[serde(rename = "Tuple")]
@@ -93,6 +95,9 @@ fn parse_rule(rule: &str) -> Result<Rule, Error> {
                     }
                     "or" => {
                         node = Rule::Or(buffer.clone());
+                    }
+                    "in" => {
+                        node = Rule::In(buffer.clone());
                     }
                     _ => {
                         node = Rule::String(buffer.clone());
@@ -222,6 +227,23 @@ impl Rule {
                         (l, r) => Err(Error::ConnotCompare(l, r)),
                     }
                 }
+                Some(Rule::In(_)) => {
+                    if children.len() != 3 {
+                        return Err(Error::InvalidEqStatement(self.clone()));
+                    }
+                    let left = children
+                        .get(1)
+                        .ok_or(Error::InvalidEqStatement(self.clone()))?
+                        .eval(context)?;
+                    let right = children
+                        .get(2)
+                        .ok_or(Error::InvalidEqStatement(self.clone()))?
+                        .eval(context)?;
+                    match (left, right) {
+                        (Rule::String(l), Rule::Tuple(r)) => Ok(Rule::Bool(r.contains(&Rule::String(l)))),
+                        (l, r) => Err(Error::ConnotCompare(l, r)),
+                    }
+                }
                 _ => Ok(Rule::Tuple(vec![])),
             },
             Rule::String(val) => {
@@ -308,6 +330,26 @@ mod tests {
                 ]),
                 Rule::Tuple(vec![Rule::List(String::from("list")),]),
             ]))
+        );
+    }
+
+    #[test]
+    fn test_eval_rule_in() {
+        assert_eq!(
+            Rule::from_str("(in john (list john jane))").unwrap().eval(&vec![]),
+            Ok(Rule::Bool(true))
+        );
+        assert_eq!(
+            Rule::from_str("(in john (list jane))").unwrap().eval(&vec![]),
+            Ok(Rule::Bool(false))
+        );
+        assert_eq!(
+            Rule::from_str("(in john (list 10))").unwrap().eval(&vec![]),
+            Ok(Rule::Bool(false))
+        );
+        assert_eq!(
+            Rule::from_str("(in john (list 10 john))").unwrap().eval(&vec![]),
+            Ok(Rule::Bool(true))
         );
     }
 
