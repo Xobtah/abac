@@ -35,6 +35,9 @@ pub enum Error {
     InvalidIfStatement(Rule),
     InvalidIfCondition(Rule),
     InvalidEqStatement(Rule),
+    InvalidOrStatement(Rule),
+    InvalidAndStatement(Rule),
+    InvalidInStatement(Rule),
 }
 
 pub type Context = Vec<(String, Rule)>;
@@ -150,15 +153,15 @@ impl Rule {
                     }
                     let condition = children
                         .get(1)
-                        .ok_or(Error::InvalidIfCondition(self.clone()))?
+                        .ok_or(Error::InvalidIfStatement(self.clone()))?
                         .eval(context)?;
                     let then = children
                         .get(2)
-                        .ok_or(Error::InvalidIfCondition(self.clone()))?
+                        .ok_or(Error::InvalidIfStatement(self.clone()))?
                         .eval(context)?;
                     let otherwise = children
                         .get(3)
-                        .ok_or(Error::InvalidIfCondition(self.clone()))?
+                        .ok_or(Error::InvalidIfStatement(self.clone()))?
                         .eval(context)?;
                     match condition {
                         Rule::Bool(false) => Ok(otherwise),
@@ -195,15 +198,15 @@ impl Rule {
                 )),
                 Some(Rule::And(_)) => {
                     if children.len() != 3 {
-                        return Err(Error::InvalidEqStatement(self.clone()));
+                        return Err(Error::InvalidAndStatement(self.clone()));
                     }
                     let left = children
                         .get(1)
-                        .ok_or(Error::InvalidEqStatement(self.clone()))?
+                        .ok_or(Error::InvalidAndStatement(self.clone()))?
                         .eval(context)?;
                     let right = children
                         .get(2)
-                        .ok_or(Error::InvalidEqStatement(self.clone()))?
+                        .ok_or(Error::InvalidAndStatement(self.clone()))?
                         .eval(context)?;
                     match (left, right) {
                         (Rule::Bool(l), Rule::Bool(r)) => Ok(Rule::Bool(l && r)),
@@ -212,15 +215,15 @@ impl Rule {
                 }
                 Some(Rule::Or(_)) => {
                     if children.len() != 3 {
-                        return Err(Error::InvalidEqStatement(self.clone()));
+                        return Err(Error::InvalidOrStatement(self.clone()));
                     }
                     let left = children
                         .get(1)
-                        .ok_or(Error::InvalidEqStatement(self.clone()))?
+                        .ok_or(Error::InvalidOrStatement(self.clone()))?
                         .eval(context)?;
                     let right = children
                         .get(2)
-                        .ok_or(Error::InvalidEqStatement(self.clone()))?
+                        .ok_or(Error::InvalidOrStatement(self.clone()))?
                         .eval(context)?;
                     match (left, right) {
                         (Rule::Bool(l), Rule::Bool(r)) => Ok(Rule::Bool(l || r)),
@@ -229,19 +232,22 @@ impl Rule {
                 }
                 Some(Rule::In(_)) => {
                     if children.len() != 3 {
-                        return Err(Error::InvalidEqStatement(self.clone()));
+                        return Err(Error::InvalidInStatement(self.clone()));
                     }
                     let left = children
                         .get(1)
-                        .ok_or(Error::InvalidEqStatement(self.clone()))?
+                        .ok_or(Error::InvalidInStatement(self.clone()))?
                         .eval(context)?;
                     let right = children
                         .get(2)
-                        .ok_or(Error::InvalidEqStatement(self.clone()))?
+                        .ok_or(Error::InvalidInStatement(self.clone()))?
                         .eval(context)?;
                     match (left, right) {
-                        (Rule::String(l), Rule::Tuple(r)) => Ok(Rule::Bool(r.contains(&Rule::String(l)))),
-                        (l, r) => Err(Error::ConnotCompare(l, r)),
+                        (Rule::String(l), Rule::Tuple(ref r)) => Ok(Rule::Bool(r.contains(&Rule::String(l)))),
+                        (Rule::Integer(l), Rule::Tuple(ref r)) => Ok(Rule::Bool(r.contains(&Rule::Integer(l)))),
+                        (Rule::Float(l), Rule::Tuple(ref r)) => Ok(Rule::Bool(r.contains(&Rule::Float(l)))),
+                        (Rule::Bool(l), Rule::Tuple(ref r)) => Ok(Rule::Bool(r.contains(&Rule::Bool(l)))),
+                        (l, r) => Err(Error::InvalidInStatement(self.clone())),
                     }
                 }
                 _ => Ok(Rule::Tuple(vec![])),
@@ -336,6 +342,30 @@ mod tests {
     #[test]
     fn test_eval_rule_in() {
         assert_eq!(
+            Rule::from_str("(in john jane)").unwrap().eval(&vec![]),
+            Err(Error::InvalidInStatement(Rule::Tuple(vec![
+                Rule::In(String::from("in")),
+                Rule::String(String::from("john")),
+                Rule::String(String::from("jane")),
+            ])))
+        );
+        assert_eq!(
+            Rule::from_str("(in (list john) jane)").unwrap().eval(&vec![]),
+            Err(Error::InvalidInStatement(Rule::Tuple(vec![
+                Rule::In(String::from("in")),
+                Rule::Tuple(vec![Rule::List(String::from("list")), Rule::String(String::from("john"))]),
+                Rule::String(String::from("jane")),
+            ])))
+        );
+        assert_eq!(
+            Rule::from_str("(in john (list))").unwrap().eval(&vec![]),
+            Ok(Rule::Bool(false))
+        );
+        assert_eq!(
+            Rule::from_str("(in 10 (list))").unwrap().eval(&vec![]),
+            Ok(Rule::Bool(false))
+        );
+        assert_eq!(
             Rule::from_str("(in john (list john jane))").unwrap().eval(&vec![]),
             Ok(Rule::Bool(true))
         );
@@ -355,6 +385,13 @@ mod tests {
 
     #[test]
     fn test_eval_rule_and() {
+        assert_eq!(
+            Rule::from_str("(and true)").unwrap().eval(&vec![]),
+            Err(Error::InvalidAndStatement(Rule::Tuple(vec![
+                Rule::And(String::from("and")),
+                Rule::Bool(true),
+            ])))
+        );
         assert_eq!(
             Rule::from_str("(and true true)").unwrap().eval(&vec![]),
             Ok(Rule::Bool(true))
@@ -376,6 +413,13 @@ mod tests {
     #[test]
     fn test_eval_rule_or() {
         assert_eq!(
+            Rule::from_str("(or true)").unwrap().eval(&vec![]),
+            Err(Error::InvalidOrStatement(Rule::Tuple(vec![
+                Rule::Or(String::from("or")),
+                Rule::Bool(true),
+            ])))
+        );
+        assert_eq!(
             Rule::from_str("(or true true)").unwrap().eval(&vec![]),
             Ok(Rule::Bool(true))
         );
@@ -395,6 +439,19 @@ mod tests {
 
     #[test]
     fn test_eval_rule_eq() {
+        assert_eq!(
+            Rule::from_str("(eq)").unwrap().eval(&vec![]),
+            Err(Error::InvalidEqStatement(Rule::Tuple(vec![
+                Rule::Eq(String::from("eq")),
+            ])))
+        );
+        assert_eq!(
+            Rule::from_str("(eq john)").unwrap().eval(&vec![]),
+            Err(Error::InvalidEqStatement(Rule::Tuple(vec![
+                Rule::Eq(String::from("eq")),
+                Rule::String(String::from("john")),
+            ]))
+        ));
         assert_eq!(
             Rule::from_str("(eq john john)").unwrap().eval(&vec![]),
             Ok(Rule::Bool(true))
@@ -431,6 +488,12 @@ mod tests {
 
     #[test]
     fn test_eval_rule_if() {
+        assert_eq!(
+            Rule::from_str("(if)").unwrap().eval(&vec![]),
+            Err(Error::InvalidIfStatement(Rule::Tuple(vec![
+                Rule::If(String::from("if")),
+            ])))
+        );
         assert_eq!(
             Rule::from_str("(if true true false").unwrap().eval(&vec![]),
             Ok(Rule::Bool(true))
