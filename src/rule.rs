@@ -19,8 +19,8 @@ pub enum Rule {
     Or(String),
     #[serde(rename = "Eq")]
     Eq(String),
-    #[serde(rename = "Set")]
-    Set(String),
+    #[serde(rename = "List")]
+    List(String),
     #[serde(rename = "Tuple")]
     Tuple(Vec<Rule>),
 }
@@ -51,6 +51,11 @@ fn parse_rule(rule: &str) -> Result<Rule, Error> {
     let flush_buffer = |buffer: &mut String, stack: &mut Vec<Rule>| -> Result<(), Error> {
         if !buffer.is_empty() {
             let mut node: Rule;
+            let mut parent = stack.pop().ok_or(Error::CannotParse(String::from(rule)))?;
+            let mut children = match parent {
+                Rule::Tuple(ref mut children) => children,
+                _ => return Err(Error::CannotParse(String::from(rule))),
+            };
             if buffer.parse::<i32>().is_ok() {
                 node = Rule::Integer(
                     buffer
@@ -72,7 +77,7 @@ fn parse_rule(rule: &str) -> Result<Rule, Error> {
                         .ok()
                         .ok_or(Error::CannotParseAs(Rule::Bool(false), buffer.clone()))?,
                 );
-            } else {
+            } else if children.is_empty() {
                 match buffer.as_str() {
                     "if" => {
                         node = Rule::If(buffer.clone());
@@ -80,8 +85,8 @@ fn parse_rule(rule: &str) -> Result<Rule, Error> {
                     "eq" => {
                         node = Rule::Eq(buffer.clone());
                     }
-                    "set" => {
-                        node = Rule::Set(buffer.clone());
+                    "list" => {
+                        node = Rule::List(buffer.clone());
                     }
                     "and" => {
                         node = Rule::And(buffer.clone());
@@ -93,11 +98,10 @@ fn parse_rule(rule: &str) -> Result<Rule, Error> {
                         node = Rule::String(buffer.clone());
                     }
                 }
+            } else {
+                node = Rule::String(buffer.clone());
             }
-            let mut parent = stack.pop().ok_or(Error::CannotParse(String::from(rule)))?;
-            if let Rule::Tuple(ref mut children) = parent {
-                children.push(node);
-            }
+            children.push(node);
             buffer.clear();
             stack.push(parent);
         }
@@ -177,7 +181,7 @@ impl Rule {
                         (l, r) => Err(Error::ConnotCompare(l, r)),
                     }
                 }
-                Some(Rule::Set(_)) => Ok(Rule::Tuple(
+                Some(Rule::List(_)) => Ok(Rule::Tuple(
                     children
                         .iter()
                         .skip(1)
@@ -252,9 +256,9 @@ mod tests {
             Ok(Rule::Tuple(vec![Rule::If(String::from("if")),]))
         );
         assert_eq!(
-            Rule::from_str("(if (eq )) (set create) (set))"),
+            Rule::from_str("(if (eq )) (list create) (list))"),
             Err(Error::CannotParse(
-                "(if (eq )) (set create) (set))".to_string()
+                "(if (eq )) (list create) (list))".to_string()
             ))
         );
         assert_eq!(
@@ -274,7 +278,7 @@ mod tests {
             ]))
         );
         assert_eq!(
-            Rule::from_str("(if (eq $name true) (set create) (set))"),
+            Rule::from_str("(if (eq $name true) (list create) (list))"),
             Ok(Rule::Tuple(vec![
                 Rule::If(String::from("if")),
                 Rule::Tuple(vec![
@@ -283,14 +287,14 @@ mod tests {
                     Rule::Bool(true),
                 ]),
                 Rule::Tuple(vec![
-                    Rule::Set(String::from("set")),
+                    Rule::List(String::from("list")),
                     Rule::String(String::from("create")),
                 ]),
-                Rule::Tuple(vec![Rule::Set(String::from("set")),]),
+                Rule::Tuple(vec![Rule::List(String::from("list")),]),
             ]))
         );
         assert_eq!(
-            Rule::from_str("(if (eq $name true) (set create) (set))"),
+            Rule::from_str("(if (eq $name true) (list create) (list))"),
             Ok(Rule::Tuple(vec![
                 Rule::If(String::from("if")),
                 Rule::Tuple(vec![
@@ -299,10 +303,10 @@ mod tests {
                     Rule::Bool(true),
                 ]),
                 Rule::Tuple(vec![
-                    Rule::Set(String::from("set")),
+                    Rule::List(String::from("list")),
                     Rule::String(String::from("create")),
                 ]),
-                Rule::Tuple(vec![Rule::Set(String::from("set")),]),
+                Rule::Tuple(vec![Rule::List(String::from("list")),]),
             ]))
         );
     }
@@ -398,7 +402,7 @@ mod tests {
     #[test]
     fn test_eval_rule() {
         assert_eq!(
-            Rule::from_str("(if (eq $name john) (set create) (set))")
+            Rule::from_str("(if (eq $name john) (list create) (list))")
                 .unwrap()
                 .eval(&vec![
                     (String::from("name"), Rule::String(String::from("john"))),
@@ -407,7 +411,7 @@ mod tests {
             Ok(Rule::Tuple(vec![Rule::String(String::from("create")),]))
         );
         assert_eq!(
-            Rule::from_str("(if (eq $role admin) (set create read update delete list) (if (eq $role user) (set read list) (set)))")
+            Rule::from_str("(if (eq $role admin) (list create read update delete list) (if (eq $role user) (list read list) (list)))")
                 .unwrap()
                 .eval(&vec![
                     (String::from("name"), Rule::String(String::from("john"))),
@@ -422,7 +426,7 @@ mod tests {
             ]))
         );
         assert_eq!(
-            Rule::from_str("(if (eq $role admin) (set create read update delete list) (if (eq $role user) (set read list) (set)))")
+            Rule::from_str("(if (eq $role admin) (list create read update delete list) (if (eq $role user) (list read list) (list)))")
                 .unwrap()
                 .eval(&vec![
                     (String::from("name"), Rule::String(String::from("john"))),
