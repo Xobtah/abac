@@ -1,5 +1,5 @@
 use serde::{de::value, Deserialize, Serialize};
-use std::{f32::consts::E, str::FromStr};
+use std::{str::FromStr};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum Rule {
@@ -40,7 +40,26 @@ pub enum Error {
     InvalidInStatement(Rule),
 }
 
-pub type Context = Vec<(String, Rule)>;
+#[derive(Debug, PartialEq)]
+pub struct Context(Vec<(String, Rule)>);
+
+impl FromStr for Context {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut context = Context(Vec::new());
+        for pair in s.split(',') {
+            if pair.is_empty() {
+                continue;
+            }
+            let mut iter = pair.split(':');
+            let key = iter.next().ok_or(Error::CannotParse(String::from(s)))?;
+            let value = iter.next().ok_or(Error::CannotParse(String::from(s)))?;
+            context.0.push((String::from(key), Rule::from_literal(value)?));
+        }
+        Ok(context)
+    }
+}
 
 impl FromStr for Rule {
     type Err = Error;
@@ -62,26 +81,11 @@ fn parse_rule(rule: &str) -> Result<Rule, Error> {
                 _ => return Err(Error::CannotParse(String::from(rule))),
             };
             if buffer.parse::<i32>().is_ok() {
-                node = Rule::Integer(
-                    buffer
-                        .parse::<i32>()
-                        .ok()
-                        .ok_or(Error::CannotParseAs(Rule::Integer(0), buffer.clone()))?,
-                );
+                node = Rule::from_literal(buffer.as_str())?;
             } else if buffer.parse::<f32>().is_ok() {
-                node = Rule::Float(
-                    buffer
-                        .parse::<f32>()
-                        .ok()
-                        .ok_or(Error::CannotParseAs(Rule::Float(0.0), buffer.clone()))?,
-                );
+                node = Rule::from_literal(buffer.as_str())?;
             } else if buffer.parse::<bool>().is_ok() {
-                node = Rule::Bool(
-                    buffer
-                        .parse::<bool>()
-                        .ok()
-                        .ok_or(Error::CannotParseAs(Rule::Bool(false), buffer.clone()))?,
-                );
+                node = Rule::from_literal(buffer.as_str())?;
             } else if children.is_empty() {
                 match buffer.as_str() {
                     "if" => {
@@ -144,6 +148,18 @@ fn parse_rule(rule: &str) -> Result<Rule, Error> {
 }
 
 impl Rule {
+    pub fn from_literal(s: &str) -> Result<Rule, Error> {
+        if s.parse::<i32>().is_ok() {
+            Ok(Rule::Integer(s.parse::<i32>().ok().ok_or(Error::CannotParseAs(Rule::Integer(0), s.to_string()))?))
+        } else if s.parse::<f32>().is_ok() {
+            Ok(Rule::Float(s.parse::<f32>().ok().ok_or(Error::CannotParseAs(Rule::Float(0.0), s.to_string()))?))
+        } else if s.parse::<bool>().is_ok() {
+            Ok(Rule::Bool(s.parse::<bool>().ok().ok_or(Error::CannotParseAs(Rule::Bool(false), s.to_string()))?))
+        } else {
+            Ok(Rule::String(s.to_string()))
+        }
+    }
+
     pub fn eval(&self, context: &Context) -> Result<Rule, Error> {
         match self {
             Rule::Tuple(children) => match children.first() {
@@ -255,7 +271,7 @@ impl Rule {
             Rule::String(val) => {
                 if val.starts_with("$") {
                     let key = val.trim_start_matches("$");
-                    match context.iter().find(|(k, _)| k == key) {
+                    match context.0.iter().find(|(k, _)| k == key) {
                         Some((_, val)) => Ok(val.clone()),
                         None => Ok(Rule::String(String::new())),
                     }
@@ -271,6 +287,29 @@ impl Rule {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_parse_context() {
+        assert_eq!(
+            Context::from_str("name:John,age:20,weight:70.5,active:true"),
+            Ok(Context(vec![
+                (String::from("name"), Rule::String(String::from("John"))),
+                (String::from("age"), Rule::Integer(20)),
+                (String::from("weight"), Rule::Float(70.5)),
+                (String::from("active"), Rule::Bool(true)),
+            ]))
+        );
+    }
+
+    #[test]
+    fn test_parse_literal() {
+        assert_eq!(Rule::from_literal("John"), Ok(Rule::String(String::from("John"))));
+        assert_eq!(Rule::from_literal("20"), Ok(Rule::Integer(20)));
+        assert_eq!(Rule::from_literal("70.5"), Ok(Rule::Float(70.5)));
+        assert_eq!(Rule::from_literal("true"), Ok(Rule::Bool(true)));
+        assert_eq!(Rule::from_literal(""), Ok(Rule::String(String::new())));
+        assert_eq!(Rule::from_literal("0d!"), Ok(Rule::String(String::from("0d!"))));
+    }
 
     #[test]
     fn test_parse_rule() {
@@ -342,7 +381,7 @@ mod tests {
     #[test]
     fn test_eval_rule_in() {
         assert_eq!(
-            Rule::from_str("(in john jane)").unwrap().eval(&vec![]),
+            Rule::from_str("(in john jane)").unwrap().eval(&Context::from_str("").unwrap()),
             Err(Error::InvalidInStatement(Rule::Tuple(vec![
                 Rule::In(String::from("in")),
                 Rule::String(String::from("john")),
@@ -350,7 +389,7 @@ mod tests {
             ])))
         );
         assert_eq!(
-            Rule::from_str("(in (list john) jane)").unwrap().eval(&vec![]),
+            Rule::from_str("(in (list john) jane)").unwrap().eval(&Context::from_str("").unwrap()),
             Err(Error::InvalidInStatement(Rule::Tuple(vec![
                 Rule::In(String::from("in")),
                 Rule::Tuple(vec![Rule::List(String::from("list")), Rule::String(String::from("john"))]),
@@ -358,27 +397,27 @@ mod tests {
             ])))
         );
         assert_eq!(
-            Rule::from_str("(in john (list))").unwrap().eval(&vec![]),
+            Rule::from_str("(in john (list))").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(false))
         );
         assert_eq!(
-            Rule::from_str("(in 10 (list))").unwrap().eval(&vec![]),
+            Rule::from_str("(in 10 (list))").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(false))
         );
         assert_eq!(
-            Rule::from_str("(in john (list john jane))").unwrap().eval(&vec![]),
+            Rule::from_str("(in john (list john jane))").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(true))
         );
         assert_eq!(
-            Rule::from_str("(in john (list jane))").unwrap().eval(&vec![]),
+            Rule::from_str("(in john (list jane))").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(false))
         );
         assert_eq!(
-            Rule::from_str("(in john (list 10))").unwrap().eval(&vec![]),
+            Rule::from_str("(in john (list 10))").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(false))
         );
         assert_eq!(
-            Rule::from_str("(in john (list 10 john))").unwrap().eval(&vec![]),
+            Rule::from_str("(in john (list 10 john))").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(true))
         );
     }
@@ -386,26 +425,26 @@ mod tests {
     #[test]
     fn test_eval_rule_and() {
         assert_eq!(
-            Rule::from_str("(and true)").unwrap().eval(&vec![]),
+            Rule::from_str("(and true)").unwrap().eval(&Context::from_str("").unwrap()),
             Err(Error::InvalidAndStatement(Rule::Tuple(vec![
                 Rule::And(String::from("and")),
                 Rule::Bool(true),
             ])))
         );
         assert_eq!(
-            Rule::from_str("(and true true)").unwrap().eval(&vec![]),
+            Rule::from_str("(and true true)").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(true))
         );
         assert_eq!(
-            Rule::from_str("(and true false)").unwrap().eval(&vec![]),
+            Rule::from_str("(and true false)").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(false))
         );
         assert_eq!(
-            Rule::from_str("(and false true)").unwrap().eval(&vec![]),
+            Rule::from_str("(and false true)").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(false))
         );
         assert_eq!(
-            Rule::from_str("(and false false)").unwrap().eval(&vec![]),
+            Rule::from_str("(and false false)").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(false))
         );
     }
@@ -413,26 +452,26 @@ mod tests {
     #[test]
     fn test_eval_rule_or() {
         assert_eq!(
-            Rule::from_str("(or true)").unwrap().eval(&vec![]),
+            Rule::from_str("(or true)").unwrap().eval(&Context::from_str("").unwrap()),
             Err(Error::InvalidOrStatement(Rule::Tuple(vec![
                 Rule::Or(String::from("or")),
                 Rule::Bool(true),
             ])))
         );
         assert_eq!(
-            Rule::from_str("(or true true)").unwrap().eval(&vec![]),
+            Rule::from_str("(or true true)").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(true))
         );
         assert_eq!(
-            Rule::from_str("(or true false)").unwrap().eval(&vec![]),
+            Rule::from_str("(or true false)").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(true))
         );
         assert_eq!(
-            Rule::from_str("(or false true)").unwrap().eval(&vec![]),
+            Rule::from_str("(or false true)").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(true))
         );
         assert_eq!(
-            Rule::from_str("(or false false)").unwrap().eval(&vec![]),
+            Rule::from_str("(or false false)").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(false))
         );
     }
@@ -440,48 +479,48 @@ mod tests {
     #[test]
     fn test_eval_rule_eq() {
         assert_eq!(
-            Rule::from_str("(eq)").unwrap().eval(&vec![]),
+            Rule::from_str("(eq)").unwrap().eval(&Context::from_str("").unwrap()),
             Err(Error::InvalidEqStatement(Rule::Tuple(vec![
                 Rule::Eq(String::from("eq")),
             ])))
         );
         assert_eq!(
-            Rule::from_str("(eq john)").unwrap().eval(&vec![]),
+            Rule::from_str("(eq john)").unwrap().eval(&Context::from_str("").unwrap()),
             Err(Error::InvalidEqStatement(Rule::Tuple(vec![
                 Rule::Eq(String::from("eq")),
                 Rule::String(String::from("john")),
             ]))
         ));
         assert_eq!(
-            Rule::from_str("(eq john john)").unwrap().eval(&vec![]),
+            Rule::from_str("(eq john john)").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(true))
         );
         assert_eq!(
-            Rule::from_str("(eq john jane)").unwrap().eval(&vec![]),
+            Rule::from_str("(eq john jane)").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(false))
         );
         assert_eq!(
-            Rule::from_str("(eq 10 10)").unwrap().eval(&vec![]),
+            Rule::from_str("(eq 10 10)").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(true))
         );
         assert_eq!(
-            Rule::from_str("(eq 10 20)").unwrap().eval(&vec![]),
+            Rule::from_str("(eq 10 20)").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(false))
         );
         assert_eq!(
-            Rule::from_str("(eq 10.0 10.0)").unwrap().eval(&vec![]),
+            Rule::from_str("(eq 10.0 10.0)").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(true))
         );
         assert_eq!(
-            Rule::from_str("(eq 10.0 20.0)").unwrap().eval(&vec![]),
+            Rule::from_str("(eq 10.0 20.0)").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(false))
         );
         assert_eq!(
-            Rule::from_str("(eq true true)").unwrap().eval(&vec![]),
+            Rule::from_str("(eq true true)").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(true))
         );
         assert_eq!(
-            Rule::from_str("(eq true false)").unwrap().eval(&vec![]),
+            Rule::from_str("(eq true false)").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(false))
         );
     }
@@ -489,17 +528,17 @@ mod tests {
     #[test]
     fn test_eval_rule_if() {
         assert_eq!(
-            Rule::from_str("(if)").unwrap().eval(&vec![]),
+            Rule::from_str("(if)").unwrap().eval(&Context::from_str("").unwrap()),
             Err(Error::InvalidIfStatement(Rule::Tuple(vec![
                 Rule::If(String::from("if")),
             ])))
         );
         assert_eq!(
-            Rule::from_str("(if true true false").unwrap().eval(&vec![]),
+            Rule::from_str("(if true true false").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(true))
         );
         assert_eq!(
-            Rule::from_str("(if false true 10)").unwrap().eval(&vec![]),
+            Rule::from_str("(if false true 10)").unwrap().eval(&Context::from_str("").unwrap()),
             Ok(Rule::Integer(10))
         );
     }
@@ -509,19 +548,13 @@ mod tests {
         assert_eq!(
             Rule::from_str("(if (eq $name john) (list create) (list))")
                 .unwrap()
-                .eval(&vec![
-                    (String::from("name"), Rule::String(String::from("john"))),
-                    (String::from("role"), Rule::String(String::from("admin"))),
-                ]),
+                .eval(&Context::from_str("name:john,role:admin").unwrap()),
             Ok(Rule::Tuple(vec![Rule::String(String::from("create")),]))
         );
         assert_eq!(
             Rule::from_str("(if (eq $role admin) (list create read update delete list) (if (eq $role user) (list read list) (list)))")
                 .unwrap()
-                .eval(&vec![
-                    (String::from("name"), Rule::String(String::from("john"))),
-                    (String::from("role"), Rule::String(String::from("admin"))),
-                ]),
+                .eval(&Context::from_str("name:john,role:admin").unwrap()),
             Ok(Rule::Tuple(vec![
                 Rule::String(String::from("create")),
                 Rule::String(String::from("read")),
@@ -533,10 +566,7 @@ mod tests {
         assert_eq!(
             Rule::from_str("(if (eq $role admin) (list create read update delete list) (if (eq $role user) (list read list) (list)))")
                 .unwrap()
-                .eval(&vec![
-                    (String::from("name"), Rule::String(String::from("john"))),
-                    (String::from("role"), Rule::String(String::from("user"))),
-                ]),
+                .eval(&Context::from_str("name:john,role:user").unwrap()),
             Ok(Rule::Tuple(vec![
                 Rule::String(String::from("read")),
                 Rule::String(String::from("list")),

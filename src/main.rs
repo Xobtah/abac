@@ -1,7 +1,8 @@
 mod rule;
 mod permission;
 
-use rule::Rule;
+use std::str::FromStr;
+use rule::{Rule, Context};
 use permission::{Permission, Operation};
 
 struct Scope {
@@ -9,16 +10,22 @@ struct Scope {
     description: String,
 }
 
-struct Attribute {
-    name: String,
-    value: String,
-}
-
 struct Request {
-    operation: Operation,
-    scope: Scope,
-    attributes: Vec<Attribute>,
+    scope: String,
+    operation: String,
+    attributes: String,
 }
 
 fn main() {
+    Context::from_str("").unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test() {
+        let attributes = "name:John,age:20,weight:70.5,active:true";
+   }
 }

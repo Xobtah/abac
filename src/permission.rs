@@ -1,4 +1,4 @@
-use crate::rule::Rule;
+use crate::rule::{Rule, Context};
 use std::str::FromStr;
 
 pub type Permission = u8;
@@ -103,7 +103,7 @@ mod tests {
             Permission::from(
                 Rule::from_str("(list create)")
                     .unwrap()
-                    .eval(&vec![])
+                    .eval(&Context::from_str("").unwrap())
                     .unwrap()
             ),
             Operation::Create.into()
@@ -112,7 +112,7 @@ mod tests {
             Permission::from(
                 Rule::from_str("(list read)")
                     .unwrap()
-                    .eval(&vec![])
+                    .eval(&Context::from_str("").unwrap())
                     .unwrap()
             ),
             Operation::Read.into()
@@ -121,7 +121,7 @@ mod tests {
             Permission::from(
                 Rule::from_str("(list update)")
                     .unwrap()
-                    .eval(&vec![])
+                    .eval(&Context::from_str("").unwrap())
                     .unwrap()
             ),
             Operation::Update.into()
@@ -130,7 +130,7 @@ mod tests {
             Permission::from(
                 Rule::from_str("(list delete)")
                     .unwrap()
-                    .eval(&vec![])
+                    .eval(&Context::from_str("").unwrap())
                     .unwrap()
             ),
             Operation::Delete.into()
@@ -139,7 +139,7 @@ mod tests {
             Permission::from(
                 Rule::from_str("(list list)")
                     .unwrap()
-                    .eval(&vec![])
+                    .eval(&Context::from_str("").unwrap())
                     .unwrap()
             ),
             Operation::List.into()
@@ -148,7 +148,7 @@ mod tests {
             Permission::from(
                 Rule::from_str("(list delete update)")
                     .unwrap()
-                    .eval(&vec![])
+                    .eval(&Context::from_str("").unwrap())
                     .unwrap()
             ),
             <Operation as Into<Permission>>::into(Operation::Delete)
@@ -158,7 +158,7 @@ mod tests {
             Permission::from(
                 Rule::from_str("(list create read update delete)")
                     .unwrap()
-                    .eval(&vec![])
+                    .eval(&Context::from_str("").unwrap())
                     .unwrap()
             ),
             <Operation as Into<Permission>>::into(Operation::Create)
