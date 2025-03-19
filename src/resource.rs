@@ -4,7 +4,6 @@ use crate::rule::{Context, Rule, Error};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::collections::BTreeMap;
-use std::path;
 use std::str::FromStr;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
@@ -223,7 +222,7 @@ mod tests {
     }
 
     #[test]
-    fn test_is_allowed() {
+    fn test_is_allowed_ok() {
         let rh: ResourceHierarchy = toml::from_str::<Config>(
             r#"
             [resources]
@@ -231,7 +230,7 @@ mod tests {
             "/test1" = {access_rule = "(list create)", description = "Root"}
             "/test1/" = {access_rule = "(list read)", description = "Root"}
             "/test2/test3" = {access_rule = "(list read)", description = "Root"}
-            "/public" = {access_rule = "(list all)", description = "Root"}
+            "/all" = {access_rule = "(list all)", description = "Root"}
         "#,
         )
         .unwrap()
@@ -324,17 +323,17 @@ mod tests {
             true
         );
         assert_eq!(
-            rh.is_allowed(Operation::Delete, &mut ResourcePath::from_str("/public").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Delete, &mut ResourcePath::from_str("/all").unwrap(), Context::from_str("").unwrap())
                 .unwrap(),
             true
         );
         assert_eq!(
-            rh.is_allowed(Operation::Delete, &mut ResourcePath::from_str("/public/").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Delete, &mut ResourcePath::from_str("/all/").unwrap(), Context::from_str("").unwrap())
                 .unwrap(),
             true
         );
         assert_eq!(
-            rh.is_allowed(Operation::Delete, &mut ResourcePath::from_str("/public/1").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Delete, &mut ResourcePath::from_str("/all/1").unwrap(), Context::from_str("").unwrap())
                 .unwrap(),
             true
         );
