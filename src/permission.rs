@@ -21,6 +21,8 @@ impl From<Rule> for Permission {
 
             let operation = if let Ok(operation) = Operation::from_str(&operation) {
                 operation
+            } else if operation == "all" {
+                return 0b11111;
             } else {
                 return 0;
             };
@@ -80,13 +82,13 @@ impl FromStr for Operation {
 }
 
 impl Operation {
-    fn allowed(self, permission: Permission) -> bool {
+    pub fn allowed_for(&self, permission: Permission) -> bool {
         match self {
-            Operation::Create => permission & <Operation as Into<Permission>>::into(self) != 0,
-            Operation::Read => permission & <Operation as Into<Permission>>::into(self) != 0,
-            Operation::Update => permission & <Operation as Into<Permission>>::into(self) != 0,
-            Operation::Delete => permission & <Operation as Into<Permission>>::into(self) != 0,
-            Operation::List => permission & <Operation as Into<Permission>>::into(self) != 0,
+            Operation::Create => permission & <Operation as Into<Permission>>::into(self.clone()) != 0,
+            Operation::Read => permission & <Operation as Into<Permission>>::into(self.clone()) != 0,
+            Operation::Update => permission & <Operation as Into<Permission>>::into(self.clone()) != 0,
+            Operation::Delete => permission & <Operation as Into<Permission>>::into(self.clone()) != 0,
+            Operation::List => permission & <Operation as Into<Permission>>::into(self.clone()) != 0,
         }
     }
 }
@@ -176,6 +178,19 @@ mod tests {
                 | <Operation as Into<Permission>>::into(Operation::Update)
                 | <Operation as Into<Permission>>::into(Operation::Delete)
         );
+        assert_eq!(
+            Permission::from(
+                Rule::from_str("(list all)")
+                    .unwrap()
+                    .eval(&Context::from_str("").unwrap())
+                    .unwrap()
+            ),
+            <Operation as Into<Permission>>::into(Operation::Create)
+                | <Operation as Into<Permission>>::into(Operation::Read)
+                | <Operation as Into<Permission>>::into(Operation::Update)
+                | <Operation as Into<Permission>>::into(Operation::Delete)
+                | <Operation as Into<Permission>>::into(Operation::List)
+        );
     }
 
     #[test]
@@ -197,10 +212,10 @@ mod tests {
     fn test_operation_allowed() {
         let permission: Permission = 0b11111;
 
-        assert_eq!(Operation::Create.allowed(permission), true);
-        assert_eq!(Operation::Read.allowed(permission), true);
-        assert_eq!(Operation::Update.allowed(permission), true);
-        assert_eq!(Operation::Delete.allowed(permission), true);
-        assert_eq!(Operation::List.allowed(permission), true);
+        assert_eq!(Operation::Create.allowed_for(permission), true);
+        assert_eq!(Operation::Read.allowed_for(permission), true);
+        assert_eq!(Operation::Update.allowed_for(permission), true);
+        assert_eq!(Operation::Delete.allowed_for(permission), true);
+        assert_eq!(Operation::List.allowed_for(permission), true);
     }
 }

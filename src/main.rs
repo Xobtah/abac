@@ -17,7 +17,7 @@ fn main() {
     let rh: ResourceHierarchy = toml::from_str::<Config>(
         r#"
         [resources]
-        "/" = {access_rule = "(list list)", description = "Root"}
+        "/" = {access_rule = "(if true (list all) (list))", description = "Root"}
         "/test" = {access_rule = "(list create)", description = "Root"}
         "/test/" = {access_rule = "(list read)", description = "Root"}
     "#,

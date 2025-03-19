@@ -91,7 +91,9 @@ impl<'a> Deserialize<'a> for Rule {
         D: serde::Deserializer<'a>,
     {
         let s = String::deserialize(deserializer)?;
-        Rule::from_str(s.as_str()).map_err(serde::de::Error::custom)
+        let rule = Rule::from_str(s.as_str()).map_err(serde::de::Error::custom)?;
+        rule.eval(&Context::from_str("").unwrap()).map_err(serde::de::Error::custom)?;
+        Ok(rule)
     }
 }
 
