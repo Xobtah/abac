@@ -61,7 +61,7 @@ impl ResourceHierarchy {
         }
     }
 
-    fn is_allowed(&self, to: Operation, on: &mut ResourcePath, with: Context) -> Result<bool, Error> {
+    fn is_allowed(&self, to: Operation, on: &mut ResourcePath, with: &Context) -> Result<bool, Error> {
         if let Some(access_rule) = &self.attributes.access_rule {
             let permission: Permission = access_rule.eval(&with)?.into();
             if to.allowed_for(permission) {
@@ -238,102 +238,102 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            rh.is_allowed(Operation::Create, &mut ResourcePath::from_str("/").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Create, &mut ResourcePath::from_str("/").unwrap(), &Context::from_str("").unwrap())
                 .unwrap(),
             false
         );
         assert_eq!(
-            rh.is_allowed(Operation::Create, &mut ResourcePath::from_str("/test1").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Create, &mut ResourcePath::from_str("/test1").unwrap(), &Context::from_str("").unwrap())
                 .unwrap(),
             true
         );
         assert_eq!(
-            rh.is_allowed(Operation::Read, &mut ResourcePath::from_str("/test1").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Read, &mut ResourcePath::from_str("/test1").unwrap(), &Context::from_str("").unwrap())
                 .unwrap(),
             false
         );
         assert_eq!(
-            rh.is_allowed(Operation::Create, &mut ResourcePath::from_str("/test1/").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Create, &mut ResourcePath::from_str("/test1/").unwrap(), &Context::from_str("").unwrap())
                 .unwrap(),
             true
         );
         assert_eq!(
-            rh.is_allowed(Operation::Read, &mut ResourcePath::from_str("/test1/").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Read, &mut ResourcePath::from_str("/test1/").unwrap(), &Context::from_str("").unwrap())
                 .unwrap(),
             true
         );
         assert_eq!(
-            rh.is_allowed(Operation::Create, &mut ResourcePath::from_str("/test1/test").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Create, &mut ResourcePath::from_str("/test1/test").unwrap(), &Context::from_str("").unwrap())
                 .unwrap(),
             true
         );
         assert_eq!(
-            rh.is_allowed(Operation::Read, &mut ResourcePath::from_str("/test1/test").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Read, &mut ResourcePath::from_str("/test1/test").unwrap(), &Context::from_str("").unwrap())
                 .unwrap(),
             true
         );
         assert_eq!(
-            rh.is_allowed(Operation::Create, &mut ResourcePath::from_str("/test2").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Create, &mut ResourcePath::from_str("/test2").unwrap(), &Context::from_str("").unwrap())
                 .unwrap(),
             false
         );
         assert_eq!(
-            rh.is_allowed(Operation::Read, &mut ResourcePath::from_str("/test2").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Read, &mut ResourcePath::from_str("/test2").unwrap(), &Context::from_str("").unwrap())
                 .unwrap(),
             false
         );
         assert_eq!(
-            rh.is_allowed(Operation::Create, &mut ResourcePath::from_str("/test2/").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Create, &mut ResourcePath::from_str("/test2/").unwrap(), &Context::from_str("").unwrap())
                 .unwrap(),
             false
         );
         assert_eq!(
-            rh.is_allowed(Operation::Read, &mut ResourcePath::from_str("/test2/").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Read, &mut ResourcePath::from_str("/test2/").unwrap(), &Context::from_str("").unwrap())
                 .unwrap(),
             false
         );
         assert_eq!(
-            rh.is_allowed(Operation::Create, &mut ResourcePath::from_str("/test2/test").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Create, &mut ResourcePath::from_str("/test2/test").unwrap(), &Context::from_str("").unwrap())
                 .unwrap(),
             false
         );
         assert_eq!(
-            rh.is_allowed(Operation::Read, &mut ResourcePath::from_str("/test2/test").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Read, &mut ResourcePath::from_str("/test2/test").unwrap(), &Context::from_str("").unwrap())
                 .unwrap(),
             false
         );
         assert_eq!(
-            rh.is_allowed(Operation::Create, &mut ResourcePath::from_str("/test2/test3").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Create, &mut ResourcePath::from_str("/test2/test3").unwrap(), &Context::from_str("").unwrap())
                 .unwrap(),
             false
         );
         assert_eq!(
-            rh.is_allowed(Operation::Read, &mut ResourcePath::from_str("/test2/test3").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Read, &mut ResourcePath::from_str("/test2/test3").unwrap(), &Context::from_str("").unwrap())
                 .unwrap(),
             true
         );
         assert_eq!(
-            rh.is_allowed(Operation::Read, &mut ResourcePath::from_str("/test2/test3/").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Read, &mut ResourcePath::from_str("/test2/test3/").unwrap(), &Context::from_str("").unwrap())
                 .unwrap(),
             true
         );
         assert_eq!(
-            rh.is_allowed(Operation::Read, &mut ResourcePath::from_str("/test2/test3/test").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Read, &mut ResourcePath::from_str("/test2/test3/test").unwrap(), &Context::from_str("").unwrap())
                 .unwrap(),
             true
         );
         assert_eq!(
-            rh.is_allowed(Operation::Delete, &mut ResourcePath::from_str("/all").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Delete, &mut ResourcePath::from_str("/all").unwrap(), &Context::from_str("").unwrap())
                 .unwrap(),
             true
         );
         assert_eq!(
-            rh.is_allowed(Operation::Delete, &mut ResourcePath::from_str("/all/").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Delete, &mut ResourcePath::from_str("/all/").unwrap(), &Context::from_str("").unwrap())
                 .unwrap(),
             true
         );
         assert_eq!(
-            rh.is_allowed(Operation::Delete, &mut ResourcePath::from_str("/all/1").unwrap(), Context::from_str("").unwrap())
+            rh.is_allowed(Operation::Delete, &mut ResourcePath::from_str("/all/1").unwrap(), &Context::from_str("").unwrap())
                 .unwrap(),
             true
         );
