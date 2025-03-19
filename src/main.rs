@@ -1,31 +1,31 @@
-mod rule;
+mod config;
+mod resource;
 mod permission;
+mod rule;
 
+use permission::{Operation, Permission};
+use rule::{Context, Rule};
+use resource::{ResourceAttributes, ResourceHierarchy};
+use config::Config;
+use serde::Deserialize;
+use std::convert::TryFrom;
 use std::str::FromStr;
-use rule::{Rule, Context};
-use permission::{Permission, Operation};
+use toml;
 
-struct Scope {
-    name: String,
-    description: String,
-}
-
-struct Request {
-    scope: String,
-    operation: String,
-    attributes: String,
-}
 
 fn main() {
-    Context::from_str("").unwrap();
+    let toml = r#"
+        [resources]
+        "/" = {access_rule = "()", description = "Root"}
+        "/dataplatform/" = {access_rule = "()", description = "Root"}
+    "#;
+
+    let config: Config = toml::from_str(toml).unwrap();
+    let resource_hierarchy: ResourceHierarchy = config.try_into().unwrap();
+    // println!("{:?}", config);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test() {
-        let attributes = "name:John,age:20,weight:70.5,active:true";
-   }
 }

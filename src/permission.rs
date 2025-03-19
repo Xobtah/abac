@@ -1,4 +1,4 @@
-use crate::rule::{Rule, Context};
+use crate::rule::Rule;
 use std::str::FromStr;
 
 pub type Permission = u8;
@@ -93,12 +93,22 @@ impl Operation {
 
 #[cfg(test)]
 mod tests {
+    use crate::rule::{Rule, Context};
     use std::str::FromStr;
-
+    
     use super::*;
 
     #[test]
-    fn test_permission_from_rule() {
+    fn test_permission_from_rule_ok() {
+        assert_eq!(
+            Permission::from(
+                Rule::from_str("()")
+                    .unwrap()
+                    .eval(&Context::from_str("").unwrap())
+                    .unwrap()
+            ),
+            0
+        );
         assert_eq!(
             Permission::from(
                 Rule::from_str("(list create)")
@@ -106,7 +116,7 @@ mod tests {
                     .eval(&Context::from_str("").unwrap())
                     .unwrap()
             ),
-            Operation::Create.into()
+            <Operation as Into<Permission>>::into(Operation::Create)
         );
         assert_eq!(
             Permission::from(
@@ -115,7 +125,7 @@ mod tests {
                     .eval(&Context::from_str("").unwrap())
                     .unwrap()
             ),
-            Operation::Read.into()
+            <Operation as Into<Permission>>::into(Operation::Read)
         );
         assert_eq!(
             Permission::from(
@@ -124,7 +134,7 @@ mod tests {
                     .eval(&Context::from_str("").unwrap())
                     .unwrap()
             ),
-            Operation::Update.into()
+            <Operation as Into<Permission>>::into(Operation::Update)
         );
         assert_eq!(
             Permission::from(
@@ -133,7 +143,7 @@ mod tests {
                     .eval(&Context::from_str("").unwrap())
                     .unwrap()
             ),
-            Operation::Delete.into()
+            <Operation as Into<Permission>>::into(Operation::Delete)
         );
         assert_eq!(
             Permission::from(
@@ -142,7 +152,7 @@ mod tests {
                     .eval(&Context::from_str("").unwrap())
                     .unwrap()
             ),
-            Operation::List.into()
+            <Operation as Into<Permission>>::into(Operation::List)
         );
         assert_eq!(
             Permission::from(
