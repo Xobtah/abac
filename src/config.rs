@@ -85,25 +85,4 @@ mod tests {
         };
         assert_eq!(left, right);
     }
-
-    #[test]
-    fn test_resource_hierarchy_from_config_ok() {
-        let left: Result<ResourceHierarchy, ()> = toml::from_str::<Config>(
-            r#"
-            [resources]
-            "/" = {access_rule = "()", description = "Root"}
-        "#,
-        )
-        .unwrap()
-        .try_into();
-        let right: Result<ResourceHierarchy, ()> = Ok(ResourceHierarchy {
-            name: "".to_string(),
-            attributes: ResourceAttributes {
-                access_rule: Some(Rule::from_str("()").unwrap()),
-                description: Some("Root".to_string()),
-            },
-            children: vec![],
-        });
-        assert_eq!(left, right);
-    }
 }

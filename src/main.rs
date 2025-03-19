@@ -14,15 +14,18 @@ use toml;
 
 
 fn main() {
-    let toml = r#"
+    let rh: ResourceHierarchy = toml::from_str::<Config>(
+        r#"
         [resources]
-        "/" = {access_rule = "()", description = "Root"}
-        "/dataplatform/" = {access_rule = "()", description = "Root"}
-    "#;
+        "/" = {access_rule = "(list list)", description = "Root"}
+        "/test" = {access_rule = "(list create)", description = "Root"}
+        "/test/" = {access_rule = "(list read)", description = "Root"}
+    "#,
+    )
+    .unwrap()
+    .try_into().unwrap();
 
-    let config: Config = toml::from_str(toml).unwrap();
-    let resource_hierarchy: ResourceHierarchy = config.try_into().unwrap();
-    // println!("{:?}", config);
+    println!("{}", serde_json::to_string_pretty(&rh).unwrap());
 }
 
 #[cfg(test)]
