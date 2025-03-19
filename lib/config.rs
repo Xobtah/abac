@@ -10,7 +10,7 @@ pub struct Config {
 mod tests {
     use super::*;
     use crate::rule::Rule;
-    use crate::resource::{ResourceAttributes, ResourceHierarchy};
+    use crate::resource::ResourceAttributes;
     use std::str::FromStr;
     use toml;
     

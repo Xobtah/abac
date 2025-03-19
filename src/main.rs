@@ -1,12 +1,7 @@
-mod config;
-mod resource;
-mod permission;
-mod rule;
-
-use permission::{Operation, Permission};
-use rule::{Context, Rule};
-use resource::{ResourceAttributes, ResourceHierarchy};
-use config::Config;
+use abac::permission::{Operation, Permission};
+use abac::rule::{Context, Rule};
+use abac::resource::{ResourceAttributes, ResourceHierarchy};
+use abac::config::Config;
 use serde::Deserialize;
 use std::convert::TryFrom;
 use std::str::FromStr;
@@ -25,7 +20,7 @@ fn main() {
     .unwrap()
     .try_into().unwrap();
 
-    println!("{}", serde_json::to_string_pretty(&rh).unwrap());
+
 }
 
 #[cfg(test)]

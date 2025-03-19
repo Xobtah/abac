@@ -22,7 +22,7 @@ impl Default for ResourceAttributes {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct ResourcePath(Vec<String>);
+pub struct ResourcePath(Vec<String>);
 
 impl FromStr for ResourcePath {
     type Err = ();
@@ -61,7 +61,7 @@ impl ResourceHierarchy {
         }
     }
 
-    fn is_allowed(&self, to: Operation, on: &mut ResourcePath, with: &Context) -> Result<bool, Error> {
+    pub fn is_allowed(&self, to: Operation, on: &mut ResourcePath, with: &Context) -> Result<bool, Error> {
         if let Some(access_rule) = &self.attributes.access_rule {
             let permission: Permission = access_rule.eval(&with)?.into();
             if to.allowed_for(permission) {

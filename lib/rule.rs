@@ -102,9 +102,9 @@ fn parse_rule(rule: &str) -> Result<Rule, Error> {
     let mut buffer = String::new();
     let flush_buffer = |buffer: &mut String, stack: &mut Vec<Rule>| -> Result<(), Error> {
         if !buffer.is_empty() {
-            let mut node: Rule;
+            let node: Rule;
             let mut parent = stack.pop().ok_or(Error::CannotParse(String::from(rule)))?;
-            let mut children = match parent {
+            let children = match parent {
                 Rule::Tuple(ref mut children) => children,
                 _ => return Err(Error::CannotParse(String::from(rule))),
             };
@@ -291,7 +291,7 @@ impl Rule {
                         (Rule::Integer(l), Rule::Tuple(ref r)) => Ok(Rule::Bool(r.contains(&Rule::Integer(l)))),
                         (Rule::Float(l), Rule::Tuple(ref r)) => Ok(Rule::Bool(r.contains(&Rule::Float(l)))),
                         (Rule::Bool(l), Rule::Tuple(ref r)) => Ok(Rule::Bool(r.contains(&Rule::Bool(l)))),
-                        (l, r) => Err(Error::InvalidInStatement(self.clone())),
+                        (_, _) => Err(Error::InvalidInStatement(self.clone())),
                     }
                 }
                 _ => Ok(Rule::Tuple(vec![])),
