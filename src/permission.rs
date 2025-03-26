@@ -1,29 +1,24 @@
 use crate::rule::Rule;
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 
 pub type Permission = u8;
 
 impl From<Rule> for Permission {
     fn from(rule: Rule) -> Self {
-        let items = if let Rule::Tuple(items) = rule {
-            items
-        } else {
+        let Rule::Tuple(items) = rule else {
             return 0;
         };
 
         let mut permission = 0;
         for item in items {
-            let operation = if let Rule::String(operation) = item {
-                operation
-            } else {
+            let Rule::String(operation) = item else {
                 return 0;
             };
 
-            let operation = if let Ok(operation) = Operation::from_str(&operation) {
-                operation
-            } else if operation == "all" {
-                return 0b11111;
-            } else {
+            let Ok(operation) = Operation::from_str(&operation) else {
+                if operation == "all" {
+                    return 0b11111;
+                }
                 return 0;
             };
 
@@ -54,15 +49,19 @@ impl From<Operation> for Permission {
     }
 }
 
-impl ToString for Operation {
-    fn to_string(&self) -> String {
-        match self {
-            Operation::Create => "create".to_string(),
-            Operation::Read => "read".to_string(),
-            Operation::Update => "update".to_string(),
-            Operation::Delete => "delete".to_string(),
-            Operation::List => "list".to_string(),
-        }
+impl fmt::Display for Operation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Operation::Create => "create".to_string(),
+                Operation::Read => "read".to_string(),
+                Operation::Update => "update".to_string(),
+                Operation::Delete => "delete".to_string(),
+                Operation::List => "list".to_string(),
+            }
+        )
     }
 }
 
@@ -85,19 +84,11 @@ impl Operation {
     #[must_use]
     pub fn allowed_for(&self, permission: Permission) -> bool {
         match self {
-            Operation::Create => {
-                permission & <Operation as Into<Permission>>::into(self.clone()) != 0
-            }
-            Operation::Read => {
-                permission & <Operation as Into<Permission>>::into(self.clone()) != 0
-            }
-            Operation::Update => {
-                permission & <Operation as Into<Permission>>::into(self.clone()) != 0
-            }
-            Operation::Delete => {
-                permission & <Operation as Into<Permission>>::into(self.clone()) != 0
-            }
-            Operation::List => {
+            Operation::Create
+            | Operation::Read
+            | Operation::Update
+            | Operation::Delete
+            | Operation::List => {
                 permission & <Operation as Into<Permission>>::into(self.clone()) != 0
             }
         }

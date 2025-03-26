@@ -107,15 +107,14 @@ fn parse_rule(rule: &str) -> Result<Rule, Error> {
         if !buffer.is_empty() {
             let node: Rule;
             let mut parent = stack.pop().ok_or(Error::CannotParse(String::from(rule)))?;
-            let children = match parent {
-                Rule::Tuple(ref mut children) => children,
-                _ => return Err(Error::CannotParse(String::from(rule))),
+            let Rule::Tuple(ref mut children) = parent else {
+                return Err(Error::CannotParse(String::from(rule)));
             };
-            if buffer.parse::<i32>().is_ok() {
-                node = Rule::from_literal(buffer.as_str())?;
-            } else if buffer.parse::<f32>().is_ok() {
-                node = Rule::from_literal(buffer.as_str())?;
-            } else if buffer.parse::<bool>().is_ok() {
+
+            if buffer.parse::<i32>().is_ok()
+                || buffer.parse::<f32>().is_ok()
+                || buffer.parse::<bool>().is_ok()
+            {
                 node = Rule::from_literal(buffer.as_str())?;
             } else if children.is_empty() {
                 match buffer.as_str() {
@@ -197,6 +196,7 @@ impl Rule {
         }
     }
 
+    #[allow(clippy::too_many_lines)] // Prolly a way to improve it but ¯\_(ツ)_/¯
     pub fn eval(&self, context: &Context) -> Result<Rule, Error> {
         match self {
             Rule::Tuple(children) => match children.first() {
@@ -237,7 +237,7 @@ impl Rule {
                     match (left, right) {
                         (Rule::String(l), Rule::String(r)) => Ok(Rule::Bool(l == r)),
                         (Rule::Integer(l), Rule::Integer(r)) => Ok(Rule::Bool(l == r)),
-                        (Rule::Float(l), Rule::Float(r)) => Ok(Rule::Bool(l == r)),
+                        (Rule::Float(l), Rule::Float(r)) => Ok(Rule::Bool((l - r).abs() < 0.1)), // Adjust tolerance
                         (Rule::Bool(l), Rule::Bool(r)) => Ok(Rule::Bool(l == r)),
                         (l, r) => Err(Error::ConnotCompare(l, r)),
                     }

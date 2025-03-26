@@ -9,16 +9,17 @@ mod tests {
 
     #[test]
     fn main_test() {
-        let rh: ResourceHierarchy = toml::from_str::<Config>(
-            r#"
+        <Config as TryInto<ResourceHierarchy>>::try_into(
+            toml::from_str::<Config>(
+                r#"
             [resources]
             "/" = {access_rule = "(if true (list all) (list))", description = "Root"}
             "/test" = {access_rule = "(list create)", description = "Root"}
             "/test/" = {access_rule = "(list read)", description = "Root"}
         "#,
+            )
+            .unwrap(),
         )
-        .unwrap()
-        .try_into()
         .unwrap();
     }
 }

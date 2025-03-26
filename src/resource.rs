@@ -66,9 +66,7 @@ impl ResourceHierarchy {
             }
         }
 
-        let child_name = if let Some(child_name) = on.0.pop() {
-            child_name
-        } else {
+        let Some(child_name) = on.0.pop() else {
             return Ok(false);
         };
 
@@ -225,6 +223,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)] // Sometimes it's ok for tests to be really f-cking long
     fn test_is_allowed_ok() {
         let rh: ResourceHierarchy = toml::from_str::<Config>(
             r#"
