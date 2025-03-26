@@ -82,22 +82,33 @@ impl FromStr for Operation {
 }
 
 impl Operation {
-    #[must_use] pub fn allowed_for(&self, permission: Permission) -> bool {
+    #[must_use]
+    pub fn allowed_for(&self, permission: Permission) -> bool {
         match self {
-            Operation::Create => permission & <Operation as Into<Permission>>::into(self.clone()) != 0,
-            Operation::Read => permission & <Operation as Into<Permission>>::into(self.clone()) != 0,
-            Operation::Update => permission & <Operation as Into<Permission>>::into(self.clone()) != 0,
-            Operation::Delete => permission & <Operation as Into<Permission>>::into(self.clone()) != 0,
-            Operation::List => permission & <Operation as Into<Permission>>::into(self.clone()) != 0,
+            Operation::Create => {
+                permission & <Operation as Into<Permission>>::into(self.clone()) != 0
+            }
+            Operation::Read => {
+                permission & <Operation as Into<Permission>>::into(self.clone()) != 0
+            }
+            Operation::Update => {
+                permission & <Operation as Into<Permission>>::into(self.clone()) != 0
+            }
+            Operation::Delete => {
+                permission & <Operation as Into<Permission>>::into(self.clone()) != 0
+            }
+            Operation::List => {
+                permission & <Operation as Into<Permission>>::into(self.clone()) != 0
+            }
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::rule::{Rule, Context};
+    use crate::rule::{Context, Rule};
     use std::str::FromStr;
-    
+
     use super::*;
 
     #[test]
