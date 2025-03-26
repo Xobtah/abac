@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::{fmt::Display, str::FromStr};
+use std::str::FromStr;
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
 pub enum Rule {
@@ -27,33 +27,26 @@ pub enum Rule {
     Tuple(Vec<Rule>),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, thiserror::Error, PartialEq)]
 pub enum Error {
+    #[error("Cannot parse '{0}'")]
     CannotParse(String),
+    #[error("Cannot parse '{1}' as {0:?}")]
     CannotParseAs(Rule, String),
+    #[error("Cannot compare {0:?} with {1:?}")]
     ConnotCompare(Rule, Rule),
+    #[error("Invalid if statement {0:?}")]
     InvalidIfStatement(Rule),
+    #[error("Invalid if condition {0:?}")]
     InvalidIfCondition(Rule),
+    #[error("Invalid eq statement {0:?}")]
     InvalidEqStatement(Rule),
+    #[error("Invalid or statement {0:?}")]
     InvalidOrStatement(Rule),
+    #[error("Invalid and statement {0:?}")]
     InvalidAndStatement(Rule),
+    #[error("Invalid in statement {0:?}")]
     InvalidInStatement(Rule),
-}
-
-impl Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::CannotParse(s) => write!(f, "Cannot parse '{s}'"),
-            Error::CannotParseAs(r, s) => write!(f, "Cannot parse '{s}' as {r:?}"),
-            Error::ConnotCompare(l, r) => write!(f, "Cannot compare {l:?} with {r:?}"),
-            Error::InvalidIfStatement(r) => write!(f, "Invalid if statement {r:?}"),
-            Error::InvalidIfCondition(r) => write!(f, "Invalid if condition {r:?}"),
-            Error::InvalidEqStatement(r) => write!(f, "Invalid eq statement {r:?}"),
-            Error::InvalidOrStatement(r) => write!(f, "Invalid or statement {r:?}"),
-            Error::InvalidAndStatement(r) => write!(f, "Invalid and statement {r:?}"),
-            Error::InvalidInStatement(r) => write!(f, "Invalid in statement {r:?}"),
-        }
-    }
 }
 
 #[derive(Debug, PartialEq)]
