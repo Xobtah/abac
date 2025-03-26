@@ -81,7 +81,7 @@ mod tests {
         ) {
             error.message().to_string()
         } else {
-            panic!("Expected error {:?}", right)
+            panic!("Expected error {right:?}")
         };
         assert_eq!(left, right);
     }

@@ -42,9 +42,9 @@ pub enum Operation {
     List,
 }
 
-impl Into<Permission> for Operation {
-    fn into(self) -> Permission {
-        match self {
+impl From<Operation> for Permission {
+    fn from(val: Operation) -> Self {
+        match val {
             Operation::Create => 0b00001,
             Operation::Read => 0b00010,
             Operation::Update => 0b00100,
@@ -82,7 +82,7 @@ impl FromStr for Operation {
 }
 
 impl Operation {
-    pub fn allowed_for(&self, permission: Permission) -> bool {
+    #[must_use] pub fn allowed_for(&self, permission: Permission) -> bool {
         match self {
             Operation::Create => permission & <Operation as Into<Permission>>::into(self.clone()) != 0,
             Operation::Read => permission & <Operation as Into<Permission>>::into(self.clone()) != 0,
@@ -212,10 +212,10 @@ mod tests {
     fn test_operation_allowed() {
         let permission: Permission = 0b11111;
 
-        assert_eq!(Operation::Create.allowed_for(permission), true);
-        assert_eq!(Operation::Read.allowed_for(permission), true);
-        assert_eq!(Operation::Update.allowed_for(permission), true);
-        assert_eq!(Operation::Delete.allowed_for(permission), true);
-        assert_eq!(Operation::List.allowed_for(permission), true);
+        assert!(Operation::Create.allowed_for(permission));
+        assert!(Operation::Read.allowed_for(permission));
+        assert!(Operation::Update.allowed_for(permission));
+        assert!(Operation::Delete.allowed_for(permission));
+        assert!(Operation::List.allowed_for(permission));
     }
 }

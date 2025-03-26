@@ -43,15 +43,15 @@ pub enum Error {
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::CannotParse(s) => write!(f, "Cannot parse '{}'", s),
-            Error::CannotParseAs(r, s) => write!(f, "Cannot parse '{}' as {:?}", s, r),
-            Error::ConnotCompare(l, r) => write!(f, "Cannot compare {:?} with {:?}", l, r),
-            Error::InvalidIfStatement(r) => write!(f, "Invalid if statement {:?}", r),
-            Error::InvalidIfCondition(r) => write!(f, "Invalid if condition {:?}", r),
-            Error::InvalidEqStatement(r) => write!(f, "Invalid eq statement {:?}", r),
-            Error::InvalidOrStatement(r) => write!(f, "Invalid or statement {:?}", r),
-            Error::InvalidAndStatement(r) => write!(f, "Invalid and statement {:?}", r),
-            Error::InvalidInStatement(r) => write!(f, "Invalid in statement {:?}", r),
+            Error::CannotParse(s) => write!(f, "Cannot parse '{s}'"),
+            Error::CannotParseAs(r, s) => write!(f, "Cannot parse '{s}' as {r:?}"),
+            Error::ConnotCompare(l, r) => write!(f, "Cannot compare {l:?} with {r:?}"),
+            Error::InvalidIfStatement(r) => write!(f, "Invalid if statement {r:?}"),
+            Error::InvalidIfCondition(r) => write!(f, "Invalid if condition {r:?}"),
+            Error::InvalidEqStatement(r) => write!(f, "Invalid eq statement {r:?}"),
+            Error::InvalidOrStatement(r) => write!(f, "Invalid or statement {r:?}"),
+            Error::InvalidAndStatement(r) => write!(f, "Invalid and statement {r:?}"),
+            Error::InvalidInStatement(r) => write!(f, "Invalid in statement {r:?}"),
         }
     }
 }
@@ -169,9 +169,9 @@ fn parse_rule(rule: &str) -> Result<Rule, Error> {
     if let Rule::Tuple(ref mut children) =
         stack.pop().ok_or(Error::CannotParse(String::from(rule)))?
     {
-        return children.pop().ok_or(Error::CannotParse(String::from(rule)));
+        children.pop().ok_or(Error::CannotParse(String::from(rule)))
     } else {
-        return Err(Error::CannotParse(String::from(rule)));
+        Err(Error::CannotParse(String::from(rule)))
     }
 }
 
@@ -297,8 +297,8 @@ impl Rule {
                 _ => Ok(Rule::Tuple(vec![])),
             },
             Rule::String(val) => {
-                if val.starts_with("$") {
-                    let key = val.trim_start_matches("$");
+                if val.starts_with('$') {
+                    let key = val.trim_start_matches('$');
                     match context.0.iter().find(|(k, _)| k == key) {
                         Some((_, val)) => Ok(val.clone()),
                         None => Ok(Rule::String(String::new())),
@@ -400,7 +400,7 @@ mod tests {
     fn test_parse_rule_err() {
         assert_eq!(
             Rule::from_str(""),
-            Err(Error::CannotParse(String::from("")))
+            Err(Error::CannotParse(String::new()))
         );
         assert_eq!(
             Rule::from_str("(if (eq )) (list create) (list))"),
