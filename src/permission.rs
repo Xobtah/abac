@@ -1,29 +1,24 @@
 use crate::rule::Rule;
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 
 pub type Permission = u8;
 
 impl From<Rule> for Permission {
     fn from(rule: Rule) -> Self {
-        let items = if let Rule::Tuple(items) = rule {
-            items
-        } else {
+        let Rule::Tuple(items) = rule else {
             return 0;
         };
 
         let mut permission = 0;
         for item in items {
-            let operation = if let Rule::String(operation) = item {
-                operation
-            } else {
+            let Rule::String(operation) = item else {
                 return 0;
             };
 
-            let operation = if let Ok(operation) = Operation::from_str(&operation) {
-                operation
-            } else if operation == "all" {
-                return 0b11111;
-            } else {
+            let Ok(operation) = Operation::from_str(&operation) else {
+                if operation == "all" {
+                    return 0b11111;
+                }
                 return 0;
             };
 
@@ -42,9 +37,9 @@ pub enum Operation {
     List,
 }
 
-impl Into<Permission> for Operation {
-    fn into(self) -> Permission {
-        match self {
+impl From<Operation> for Permission {
+    fn from(val: Operation) -> Self {
+        match val {
             Operation::Create => 0b00001,
             Operation::Read => 0b00010,
             Operation::Update => 0b00100,
@@ -54,15 +49,19 @@ impl Into<Permission> for Operation {
     }
 }
 
-impl ToString for Operation {
-    fn to_string(&self) -> String {
-        match self {
-            Operation::Create => "create".to_string(),
-            Operation::Read => "read".to_string(),
-            Operation::Update => "update".to_string(),
-            Operation::Delete => "delete".to_string(),
-            Operation::List => "list".to_string(),
-        }
+impl fmt::Display for Operation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Operation::Create => "create".to_string(),
+                Operation::Read => "read".to_string(),
+                Operation::Update => "update".to_string(),
+                Operation::Delete => "delete".to_string(),
+                Operation::List => "list".to_string(),
+            }
+        )
     }
 }
 
@@ -82,22 +81,25 @@ impl FromStr for Operation {
 }
 
 impl Operation {
+    #[must_use]
     pub fn allowed_for(&self, permission: Permission) -> bool {
         match self {
-            Operation::Create => permission & <Operation as Into<Permission>>::into(self.clone()) != 0,
-            Operation::Read => permission & <Operation as Into<Permission>>::into(self.clone()) != 0,
-            Operation::Update => permission & <Operation as Into<Permission>>::into(self.clone()) != 0,
-            Operation::Delete => permission & <Operation as Into<Permission>>::into(self.clone()) != 0,
-            Operation::List => permission & <Operation as Into<Permission>>::into(self.clone()) != 0,
+            Operation::Create
+            | Operation::Read
+            | Operation::Update
+            | Operation::Delete
+            | Operation::List => {
+                permission & <Operation as Into<Permission>>::into(self.clone()) != 0
+            }
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::rule::{Rule, Context};
+    use crate::rule::{Context, Rule};
     use std::str::FromStr;
-    
+
     use super::*;
 
     #[test]
@@ -212,10 +214,10 @@ mod tests {
     fn test_operation_allowed() {
         let permission: Permission = 0b11111;
 
-        assert_eq!(Operation::Create.allowed_for(permission), true);
-        assert_eq!(Operation::Read.allowed_for(permission), true);
-        assert_eq!(Operation::Update.allowed_for(permission), true);
-        assert_eq!(Operation::Delete.allowed_for(permission), true);
-        assert_eq!(Operation::List.allowed_for(permission), true);
+        assert!(Operation::Create.allowed_for(permission));
+        assert!(Operation::Read.allowed_for(permission));
+        assert!(Operation::Update.allowed_for(permission));
+        assert!(Operation::Delete.allowed_for(permission));
+        assert!(Operation::List.allowed_for(permission));
     }
 }

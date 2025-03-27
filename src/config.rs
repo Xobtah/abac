@@ -9,11 +9,11 @@ pub struct Config {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rule::Rule;
     use crate::resource::ResourceAttributes;
+    use crate::rule::Rule;
     use std::str::FromStr;
     use toml;
-    
+
     #[test]
     fn test_config_deserialization_ok() {
         let left: Result<Config, toml::de::Error> = toml::from_str::<Config>(
@@ -81,7 +81,7 @@ mod tests {
         ) {
             error.message().to_string()
         } else {
-            panic!("Expected error {:?}", right)
+            panic!("Expected error {right}")
         };
         assert_eq!(left, right);
     }
