@@ -155,7 +155,7 @@ fn parse_rule(rule: &str) -> Result<Rule, Error> {
                 children.push(node);
             }
             stack.push(parent);
-        } else if c == ' ' {
+        } else if c == ' ' || c == '\n' || c == '\t'{
             flush_buffer(&mut buffer, &mut stack)?;
         } else {
             buffer.push(c);
@@ -426,13 +426,17 @@ mod tests {
     #[test]
     fn test_eval_rule_in_ok() {
         assert_eq!(
-            Rule::from_str("(in john (list))")
+            Rule::from_str("(  in   john   ( list ) )")
                 .unwrap()
                 .eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(false))
         );
         assert_eq!(
-            Rule::from_str("(in 10 (list))")
+            Rule::from_str("(
+                in 10 (
+                    list
+                )
+            )")
                 .unwrap()
                 .eval(&Context::from_str("").unwrap()),
             Ok(Rule::Bool(false))

@@ -185,7 +185,9 @@ mod tests {
         let left: Result<ResourceHierarchy, ()> = toml::from_str::<Config>(
             r#"
             [resources]
-            "/test" = {access_rule = "(list create)", description = "Root"}
+            "/test" = {access_rule = """(
+                list create
+            )""", description = "Root"}
             "/test/" = {access_rule = "(list read)", description = "Root"}
         "#,
         )
