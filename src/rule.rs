@@ -28,13 +28,13 @@ pub enum Rule {
 }
 
 #[derive(Debug, thiserror::Error, PartialEq)]
-pub enum Error {
+pub enum RuleError {
     #[error("Cannot parse '{0}'")]
     CannotParse(String),
     #[error("Cannot parse '{1}' as {0:?}")]
     CannotParseAs(Rule, String),
     #[error("Cannot compare {0:?} with {1:?}")]
-    ConnotCompare(Rule, Rule),
+    CannotCompare(Rule, Rule),
     #[error("Invalid if statement {0:?}")]
     InvalidIfStatement(Rule),
     #[error("Invalid if condition {0:?}")]
@@ -47,13 +47,21 @@ pub enum Error {
     InvalidAndStatement(Rule),
     #[error("Invalid in statement {0:?}")]
     InvalidInStatement(Rule),
+    #[error("Key not in context {0}")]
+    KeyNotInContext(String),
 }
 
 #[derive(Debug, PartialEq)]
 pub struct Context(Vec<(String, Rule)>);
 
+impl Context {
+    pub fn get(&self, key: &str) -> Result<&Rule, RuleError> {
+        self.0.iter().find(|(k, _)| k == key).map(|(_, v)| v).ok_or(RuleError::KeyNotInContext(key.to_string()))
+    }
+}
+
 impl FromStr for Context {
-    type Err = Error;
+    type Err = RuleError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut context = Context(Vec::new());
@@ -62,8 +70,8 @@ impl FromStr for Context {
                 continue;
             }
             let mut iter = pair.split(':');
-            let key = iter.next().ok_or(Error::CannotParse(String::from(s)))?;
-            let value = iter.next().ok_or(Error::CannotParse(String::from(s)))?;
+            let key = iter.next().ok_or(RuleError::CannotParse(String::from(s)))?;
+            let value = iter.next().ok_or(RuleError::CannotParse(String::from(s)))?;
             context
                 .0
                 .push((String::from(key), Rule::from_literal(value)?));
@@ -73,7 +81,7 @@ impl FromStr for Context {
 }
 
 impl FromStr for Rule {
-    type Err = Error;
+    type Err = RuleError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         parse_rule(s)
@@ -93,15 +101,15 @@ impl<'a> Deserialize<'a> for Rule {
     }
 }
 
-fn parse_rule(rule: &str) -> Result<Rule, Error> {
+fn parse_rule(rule: &str) -> Result<Rule, RuleError> {
     let mut stack = vec![Rule::Tuple(Vec::new())];
     let mut buffer = String::new();
-    let flush_buffer = |buffer: &mut String, stack: &mut Vec<Rule>| -> Result<(), Error> {
+    let flush_buffer = |buffer: &mut String, stack: &mut Vec<Rule>| -> Result<(), RuleError> {
         if !buffer.is_empty() {
             let node: Rule;
-            let mut parent = stack.pop().ok_or(Error::CannotParse(String::from(rule)))?;
+            let mut parent = stack.pop().ok_or(RuleError::CannotParse(String::from(rule)))?;
             let Rule::Tuple(ref mut children) = parent else {
-                return Err(Error::CannotParse(String::from(rule)));
+                return Err(RuleError::CannotParse(String::from(rule)));
             };
 
             if buffer.parse::<i32>().is_ok()
@@ -149,8 +157,8 @@ fn parse_rule(rule: &str) -> Result<Rule, Error> {
             stack.push(node);
         } else if c == ')' {
             flush_buffer(&mut buffer, &mut stack)?;
-            let node = stack.pop().ok_or(Error::CannotParse(String::from(rule)))?;
-            let mut parent = stack.pop().ok_or(Error::CannotParse(String::from(rule)))?;
+            let node = stack.pop().ok_or(RuleError::CannotParse(String::from(rule)))?;
+            let mut parent = stack.pop().ok_or(RuleError::CannotParse(String::from(rule)))?;
             if let Rule::Tuple(ref mut children) = parent {
                 children.push(node);
             }
@@ -162,27 +170,27 @@ fn parse_rule(rule: &str) -> Result<Rule, Error> {
         }
     }
     if let Rule::Tuple(ref mut children) =
-        stack.pop().ok_or(Error::CannotParse(String::from(rule)))?
+        stack.pop().ok_or(RuleError::CannotParse(String::from(rule)))?
     {
-        children.pop().ok_or(Error::CannotParse(String::from(rule)))
+        children.pop().ok_or(RuleError::CannotParse(String::from(rule)))
     } else {
-        Err(Error::CannotParse(String::from(rule)))
+        Err(RuleError::CannotParse(String::from(rule)))
     }
 }
 
 impl Rule {
-    pub fn from_literal(s: &str) -> Result<Rule, Error> {
+    pub fn from_literal(s: &str) -> Result<Rule, RuleError> {
         if s.parse::<i32>().is_ok() {
             Ok(Rule::Integer(s.parse::<i32>().ok().ok_or(
-                Error::CannotParseAs(Rule::Integer(0), s.to_string()),
+                RuleError::CannotParseAs(Rule::Integer(0), s.to_string()),
             )?))
         } else if s.parse::<f32>().is_ok() {
             Ok(Rule::Float(s.parse::<f32>().ok().ok_or(
-                Error::CannotParseAs(Rule::Float(0.0), s.to_string()),
+                RuleError::CannotParseAs(Rule::Float(0.0), s.to_string()),
             )?))
         } else if s.parse::<bool>().is_ok() {
             Ok(Rule::Bool(s.parse::<bool>().ok().ok_or(
-                Error::CannotParseAs(Rule::Bool(false), s.to_string()),
+                RuleError::CannotParseAs(Rule::Bool(false), s.to_string()),
             )?))
         } else {
             Ok(Rule::String(s.to_string()))
@@ -190,49 +198,49 @@ impl Rule {
     }
 
     #[allow(clippy::too_many_lines)] // Prolly a way to improve it but ¯\_(ツ)_/¯
-    pub fn eval(&self, context: &Context) -> Result<Rule, Error> {
+    pub fn eval(&self, context: &Context) -> Result<Rule, RuleError> {
         match self {
             Rule::Tuple(children) => match children.first() {
                 Some(Rule::If(_)) => {
                     if children.len() != 4 {
-                        return Err(Error::InvalidIfStatement(self.clone()));
+                        return Err(RuleError::InvalidIfStatement(self.clone()));
                     }
                     let condition = children
                         .get(1)
-                        .ok_or(Error::InvalidIfStatement(self.clone()))?
+                        .ok_or(RuleError::InvalidIfStatement(self.clone()))?
                         .eval(context)?;
                     let then = children
                         .get(2)
-                        .ok_or(Error::InvalidIfStatement(self.clone()))?
+                        .ok_or(RuleError::InvalidIfStatement(self.clone()))?
                         .eval(context)?;
                     let otherwise = children
                         .get(3)
-                        .ok_or(Error::InvalidIfStatement(self.clone()))?
+                        .ok_or(RuleError::InvalidIfStatement(self.clone()))?
                         .eval(context)?;
                     match condition {
                         Rule::Bool(false) => Ok(otherwise),
                         Rule::Bool(true) => Ok(then),
-                        _ => Err(Error::InvalidIfCondition(condition)),
+                        _ => Err(RuleError::InvalidIfCondition(condition)),
                     }
                 }
                 Some(Rule::Eq(_)) => {
                     if children.len() != 3 {
-                        return Err(Error::InvalidEqStatement(self.clone()));
+                        return Err(RuleError::InvalidEqStatement(self.clone()));
                     }
                     let left = children
                         .get(1)
-                        .ok_or(Error::InvalidEqStatement(self.clone()))?
+                        .ok_or(RuleError::InvalidEqStatement(self.clone()))?
                         .eval(context)?;
                     let right = children
                         .get(2)
-                        .ok_or(Error::InvalidEqStatement(self.clone()))?
+                        .ok_or(RuleError::InvalidEqStatement(self.clone()))?
                         .eval(context)?;
                     match (left, right) {
                         (Rule::String(l), Rule::String(r)) => Ok(Rule::Bool(l == r)),
                         (Rule::Integer(l), Rule::Integer(r)) => Ok(Rule::Bool(l == r)),
                         (Rule::Float(l), Rule::Float(r)) => Ok(Rule::Bool((l - r).abs() < 0.1)), // Adjust tolerance
                         (Rule::Bool(l), Rule::Bool(r)) => Ok(Rule::Bool(l == r)),
-                        (l, r) => Err(Error::ConnotCompare(l, r)),
+                        (l, r) => Err(RuleError::CannotCompare(l, r)),
                     }
                 }
                 Some(Rule::List(_)) => Ok(Rule::Tuple(
@@ -240,53 +248,53 @@ impl Rule {
                         .iter()
                         .skip(1)
                         .map(|child| child.eval(context))
-                        .collect::<Result<Vec<Rule>, Error>>()?,
+                        .collect::<Result<Vec<Rule>, RuleError>>()?,
                 )),
                 Some(Rule::And(_)) => {
                     if children.len() != 3 {
-                        return Err(Error::InvalidAndStatement(self.clone()));
+                        return Err(RuleError::InvalidAndStatement(self.clone()));
                     }
                     let left = children
                         .get(1)
-                        .ok_or(Error::InvalidAndStatement(self.clone()))?
+                        .ok_or(RuleError::InvalidAndStatement(self.clone()))?
                         .eval(context)?;
                     let right = children
                         .get(2)
-                        .ok_or(Error::InvalidAndStatement(self.clone()))?
+                        .ok_or(RuleError::InvalidAndStatement(self.clone()))?
                         .eval(context)?;
                     match (left, right) {
                         (Rule::Bool(l), Rule::Bool(r)) => Ok(Rule::Bool(l && r)),
-                        (l, r) => Err(Error::ConnotCompare(l, r)),
+                        (l, r) => Err(RuleError::CannotCompare(l, r)),
                     }
                 }
                 Some(Rule::Or(_)) => {
                     if children.len() != 3 {
-                        return Err(Error::InvalidOrStatement(self.clone()));
+                        return Err(RuleError::InvalidOrStatement(self.clone()));
                     }
                     let left = children
                         .get(1)
-                        .ok_or(Error::InvalidOrStatement(self.clone()))?
+                        .ok_or(RuleError::InvalidOrStatement(self.clone()))?
                         .eval(context)?;
                     let right = children
                         .get(2)
-                        .ok_or(Error::InvalidOrStatement(self.clone()))?
+                        .ok_or(RuleError::InvalidOrStatement(self.clone()))?
                         .eval(context)?;
                     match (left, right) {
                         (Rule::Bool(l), Rule::Bool(r)) => Ok(Rule::Bool(l || r)),
-                        (l, r) => Err(Error::ConnotCompare(l, r)),
+                        (l, r) => Err(RuleError::CannotCompare(l, r)),
                     }
                 }
                 Some(Rule::In(_)) => {
                     if children.len() != 3 {
-                        return Err(Error::InvalidInStatement(self.clone()));
+                        return Err(RuleError::InvalidInStatement(self.clone()));
                     }
                     let left = children
                         .get(1)
-                        .ok_or(Error::InvalidInStatement(self.clone()))?
+                        .ok_or(RuleError::InvalidInStatement(self.clone()))?
                         .eval(context)?;
                     let right = children
                         .get(2)
-                        .ok_or(Error::InvalidInStatement(self.clone()))?
+                        .ok_or(RuleError::InvalidInStatement(self.clone()))?
                         .eval(context)?;
                     match (left, right) {
                         (Rule::String(l), Rule::Tuple(ref r)) => {
@@ -301,7 +309,7 @@ impl Rule {
                         (Rule::Bool(l), Rule::Tuple(ref r)) => {
                             Ok(Rule::Bool(r.contains(&Rule::Bool(l))))
                         }
-                        (_, _) => Err(Error::InvalidInStatement(self.clone())),
+                        (_, _) => Err(RuleError::InvalidInStatement(self.clone())),
                     }
                 }
                 _ => Ok(Rule::Tuple(vec![])),
@@ -414,10 +422,10 @@ mod tests {
 
     #[test]
     fn test_parse_rule_err() {
-        assert_eq!(Rule::from_str(""), Err(Error::CannotParse(String::new())));
+        assert_eq!(Rule::from_str(""), Err(RuleError::CannotParse(String::new())));
         assert_eq!(
             Rule::from_str("(if (eq )) (list create) (list))"),
-            Err(Error::CannotParse(
+            Err(RuleError::CannotParse(
                 "(if (eq )) (list create) (list))".to_string()
             ))
         );
@@ -472,7 +480,7 @@ mod tests {
             Rule::from_str("(in john jane)")
                 .unwrap()
                 .eval(&Context::from_str("").unwrap()),
-            Err(Error::InvalidInStatement(Rule::Tuple(vec![
+            Err(RuleError::InvalidInStatement(Rule::Tuple(vec![
                 Rule::In(String::from("in")),
                 Rule::String(String::from("john")),
                 Rule::String(String::from("jane")),
@@ -482,7 +490,7 @@ mod tests {
             Rule::from_str("(in (list john) jane)")
                 .unwrap()
                 .eval(&Context::from_str("").unwrap()),
-            Err(Error::InvalidInStatement(Rule::Tuple(vec![
+            Err(RuleError::InvalidInStatement(Rule::Tuple(vec![
                 Rule::In(String::from("in")),
                 Rule::Tuple(vec![
                     Rule::List(String::from("list")),
@@ -527,7 +535,7 @@ mod tests {
             Rule::from_str("(and true)")
                 .unwrap()
                 .eval(&Context::from_str("").unwrap()),
-            Err(Error::InvalidAndStatement(Rule::Tuple(vec![
+            Err(RuleError::InvalidAndStatement(Rule::Tuple(vec![
                 Rule::And(String::from("and")),
                 Rule::Bool(true),
             ])))
@@ -568,7 +576,7 @@ mod tests {
             Rule::from_str("(or true)")
                 .unwrap()
                 .eval(&Context::from_str("").unwrap()),
-            Err(Error::InvalidOrStatement(Rule::Tuple(vec![
+            Err(RuleError::InvalidOrStatement(Rule::Tuple(vec![
                 Rule::Or(String::from("or")),
                 Rule::Bool(true),
             ])))
@@ -639,7 +647,7 @@ mod tests {
             Rule::from_str("(eq)")
                 .unwrap()
                 .eval(&Context::from_str("").unwrap()),
-            Err(Error::InvalidEqStatement(Rule::Tuple(vec![Rule::Eq(
+            Err(RuleError::InvalidEqStatement(Rule::Tuple(vec![Rule::Eq(
                 String::from("eq")
             ),])))
         );
@@ -647,7 +655,7 @@ mod tests {
             Rule::from_str("(eq john)")
                 .unwrap()
                 .eval(&Context::from_str("").unwrap()),
-            Err(Error::InvalidEqStatement(Rule::Tuple(vec![
+            Err(RuleError::InvalidEqStatement(Rule::Tuple(vec![
                 Rule::Eq(String::from("eq")),
                 Rule::String(String::from("john")),
             ])))
@@ -676,7 +684,7 @@ mod tests {
             Rule::from_str("(if)")
                 .unwrap()
                 .eval(&Context::from_str("").unwrap()),
-            Err(Error::InvalidIfStatement(Rule::Tuple(vec![Rule::If(
+            Err(RuleError::InvalidIfStatement(Rule::Tuple(vec![Rule::If(
                 String::from("if")
             ),])))
         );
