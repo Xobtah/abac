@@ -5,11 +5,11 @@ pub mod rule;
 
 #[cfg(test)]
 mod tests {
-    use crate::{config::Config, resource::ResourceHierarchy};
+    use crate::{config::Config, resource::Hierarchy};
 
     #[test]
     fn main_test() {
-        <Config as TryInto<ResourceHierarchy>>::try_into(
+        <Config as TryInto<Hierarchy>>::try_into(
             toml::from_str::<Config>(
                 r#"
             [resources]

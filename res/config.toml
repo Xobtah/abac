@@ -1,0 +1,4 @@
+[resources]
+"/" = {access_rule = "(if (eq $role admin) (list all) (list))", description = "Root"}
+"/test" = {access_rule = "(list read)"}
+"/private/:user_id" = {access_rule = "(list create)", description = "User space"}

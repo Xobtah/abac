@@ -1,15 +1,15 @@
-use crate::resource::ResourceAttributes;
+use crate::resource::Attributes;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct Config {
-    pub resources: std::collections::HashMap<String, ResourceAttributes>,
+    pub resources: std::collections::HashMap<String, Attributes>,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resource::ResourceAttributes;
+    use crate::resource::Attributes;
     use crate::rule::Rule;
     use std::str::FromStr;
     use toml;
@@ -25,7 +25,7 @@ mod tests {
         let right: Result<Config, toml::de::Error> = Ok(Config {
             resources: std::collections::HashMap::from_iter(vec![(
                 "/".to_string(),
-                ResourceAttributes {
+                Attributes {
                     access_rule: Some(Rule::from_str("()").unwrap()),
                     description: Some("Root".to_string()),
                 },
@@ -45,21 +45,21 @@ mod tests {
             resources: std::collections::HashMap::from_iter(vec![
                 (
                     "/".to_string(),
-                    ResourceAttributes {
+                    Attributes {
                         access_rule: Some(Rule::from_str("()").unwrap()),
                         description: Some("Root".to_string()),
                     },
                 ),
                 (
                     "/dataplatform/".to_string(),
-                    ResourceAttributes {
+                    Attributes {
                         access_rule: Some(Rule::from_str("()").unwrap()),
                         description: Some("Root".to_string()),
                     },
                 ),
                 (
                     "/dataplatform".to_string(),
-                    ResourceAttributes {
+                    Attributes {
                         access_rule: Some(Rule::from_str("()").unwrap()),
                         description: Some("Root".to_string()),
                     },
